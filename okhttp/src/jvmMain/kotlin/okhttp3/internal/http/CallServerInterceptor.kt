@@ -96,12 +96,14 @@ class CallServerInterceptor(private val forWebSocket: Boolean) : Interceptor {
           invokeStartEvent = false
         }
       }
+      println(CallServerInterceptor::class.java.simpleName + " $request")
       var response = responseBuilder
           .request(request)
           .handshake(exchange.connection.handshake())
           .sentRequestAtMillis(sentRequestMillis)
           .receivedResponseAtMillis(System.currentTimeMillis())
           .build()
+      println(CallServerInterceptor::class.java.simpleName + " $response")
       var code = response.code
       if (code == 100) {
         // Server sent a 100-continue even though we did not request one. Try again to read the

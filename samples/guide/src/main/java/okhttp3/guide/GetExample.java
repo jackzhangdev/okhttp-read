@@ -21,6 +21,6 @@ public class GetExample {
   public static void main(String[] args) throws IOException {
     GetExample example = new GetExample();
     String response = example.run("https://raw.github.com/square/okhttp/master/README.md");
-    System.out.println(response);
+//    System.out.println(response);
   }
 }

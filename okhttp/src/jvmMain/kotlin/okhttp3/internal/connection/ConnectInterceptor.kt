@@ -31,6 +31,7 @@ object ConnectInterceptor : Interceptor {
     val realChain = chain as RealInterceptorChain
     val exchange = realChain.call.initExchange(realChain)
     val connectedChain = realChain.copy(exchange = exchange)
+    println(ConnectInterceptor::class.java.simpleName + " ${realChain.request}")
     return connectedChain.proceed(realChain.request)
   }
 }

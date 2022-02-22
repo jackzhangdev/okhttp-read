@@ -80,7 +80,9 @@ class BridgeInterceptor(private val cookieJar: CookieJar) : Interceptor {
       requestBuilder.header("User-Agent", userAgent)
     }
 
+    println(BridgeInterceptor::class.java.simpleName + " $userRequest")
     val networkResponse = chain.proceed(requestBuilder.build())
+    println(BridgeInterceptor::class.java.simpleName + " $networkResponse")
 
     cookieJar.receiveHeaders(userRequest.url, networkResponse.headers)
 

@@ -72,7 +72,9 @@ class RetryAndFollowUpInterceptor(private val client: OkHttpClient) : Intercepto
         }
 
         try {
+          println(RetryAndFollowUpInterceptor::class.java.simpleName + " $request")
           response = realChain.proceed(request)
+          println(RetryAndFollowUpInterceptor::class.java.simpleName + " ${response}")
           newRoutePlanner = true
         } catch (e: IOException) {
           // An attempt to communicate with a server failed. The request may have been sent.

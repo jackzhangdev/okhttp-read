@@ -30,10 +30,7 @@ import okhttp3.internal.EMPTY_RESPONSE
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.connection.RealCall
 import okhttp3.internal.discard
-import okhttp3.internal.http.ExchangeCodec
-import okhttp3.internal.http.HttpMethod
-import okhttp3.internal.http.RealResponseBody
-import okhttp3.internal.http.promisesBody
+import okhttp3.internal.http.*
 import okio.Buffer
 import okio.Source
 import okio.Timeout
@@ -93,7 +90,9 @@ class CacheInterceptor(internal val cache: Cache?) : Interceptor {
 
     var networkResponse: Response? = null
     try {
+      println(CacheInterceptor::class.java.simpleName + " $networkRequest")
       networkResponse = chain.proceed(networkRequest)
+      println(CacheInterceptor::class.java.simpleName + " $networkResponse")
     } finally {
       // If we're crashing on I/O or otherwise, don't leak the cache body.
       if (networkResponse == null && cacheCandidate != null) {
