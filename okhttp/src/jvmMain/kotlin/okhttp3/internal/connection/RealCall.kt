@@ -255,6 +255,7 @@ class RealCall(
     }
   }
 
+  /*找到一个新连接或池连接，以携带即将到来的请求和响应。*/
   /** Finds a new or pooled connection to carry a forthcoming request and response. */
   internal fun initExchange(chain: RealInterceptorChain): Exchange {
     synchronized(this) {
@@ -264,6 +265,8 @@ class RealCall(
     }
 
     val exchangeFinder = this.exchangeFinder!!
+    // 寻找连接池
+    println("${RealCall::class.java.simpleName} 寻找连接")
     val connection = exchangeFinder.find()
     val codec = connection.newCodec(client, chain)
     val result = Exchange(this, eventListener, exchangeFinder, codec)
@@ -382,6 +385,9 @@ class RealCall(
   /**
    * Remove this call from the connection's list of allocations. Returns a socket that the caller
    * should close.
+   *
+   * 将此调用从连接的分配列表中删除。返回调用者使用的套接字
+   *应该关闭。
    */
   internal fun releaseConnectionNoEvents(): Socket? {
     val connection = this.connection!!

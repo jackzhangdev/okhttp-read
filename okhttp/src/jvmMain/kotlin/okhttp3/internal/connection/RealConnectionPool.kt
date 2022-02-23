@@ -31,6 +31,7 @@ import okhttp3.internal.connection.RealCall.CallReference
 import okhttp3.internal.okHttpName
 import okhttp3.internal.platform.Platform
 
+// Socket 连接池
 class RealConnectionPool(
   taskRunner: TaskRunner,
   /** The maximum number of idle connections for each address. */
@@ -68,12 +69,22 @@ class RealConnectionPool(
   }
 
   /**
+   * 尝试为[call]获取到[address]的循环连接。如果是，则返回连接
+   *，如果没有连接，则为null。获得的联系也将是
+   *指定[RealCall.connection]。
+   *
    * Attempts to acquire a recycled connection to [address] for [call]. Returns the connection if it
    * was acquired, or null if no connection was acquired. The acquired connection will also be
    * assigned to [RealCall.connection].
    *
+   * 他在返回之前确认了返回的连接是健康的。如果遇到任何
+   *在它的搜索中不健康的连接，这将清除它们
    * This confirms the returned connection is healthy before returning it. If this encounters any
    * unhealthy connections in its search, this will clean them up.
+   *
+   * 如果[routes]是非空的，这些是解析的路由。IP地址)。
+   *这是用来合并相关域到相同的HTTP/2连接，如' square.com '
+   *和“square.ca”。
    *
    * If [routes] is non-null these are the resolved routes (ie. IP addresses) for the connection.
    * This is used to coalesce related domains to the same HTTP/2 connection, such as `square.com`
@@ -90,9 +101,12 @@ class RealConnectionPool(
       // In the first synchronized block, acquire the connection if it can satisfy this call.
       val acquired = synchronized(connection) {
         when {
+          // 是否支持连接复用
           requireMultiplexed && !connection.isMultiplexed -> false
+          // 判断连接是否符合条件
           !connection.isEligible(address, routes) -> false
           else -> {
+            println("${RealConnectionPool::class.java.simpleName} 连接可以复用")
             call.acquireConnectionNoEvents(connection)
             true
           }
@@ -101,11 +115,15 @@ class RealConnectionPool(
       if (!acquired) continue
 
       // Confirm the connection is healthy and return it.
-      if (connection.isHealthy(doExtensiveHealthChecks)) return connection
+      if (connection.isHealthy(doExtensiveHealthChecks)) {
+        println("${RealConnectionPool::class.java.simpleName} 判断连接是否健康")
+        return connection
+      }
 
       // In the second synchronized block, release the unhealthy acquired connection. We're also on
       // the hook to close this connection if its no longer in use.
       val toClose: Socket? = synchronized(connection) {
+        println("${RealConnectionPool::class.java.simpleName} 关闭不健康的和不再使用的连接")
         connection.noNewExchanges = true
         call.releaseConnectionNoEvents()
       }

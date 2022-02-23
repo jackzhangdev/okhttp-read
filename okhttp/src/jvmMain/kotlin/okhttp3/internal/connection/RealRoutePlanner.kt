@@ -50,20 +50,27 @@ class RealRoutePlanner(
 
   override fun isCanceled(): Boolean = call.isCanceled()
 
+  // 获取连接
   @Throws(IOException::class)
   override fun plan(): Plan {
+    // 打算使用 call 中的连接
+    println("${RealRoutePlanner::class.java.simpleName} Step1==== 使用 call 中的连接")
     val reuseCallConnection = planReuseCallConnection()
     if (reuseCallConnection != null) return reuseCallConnection
 
     // Attempt to get a connection from the pool.
+    println("${RealRoutePlanner::class.java.simpleName} Step2==== 使用 连接池 中的连接")
     val pooled1 = planReusePooledConnection()
     if (pooled1 != null) return pooled1
 
     // Do blocking calls to plan a route for a new connection.
+    println("${RealRoutePlanner::class.java.simpleName} Step3==== 执行阻塞调用来计划一个新连接的路由。")
     val connect = planConnect()
 
     // Now that we have a set of IP addresses, make another attempt at getting a connection from
     // the pool. We have a better chance of matching thanks to connection coalescing.
+    // 现在我们有了一组IP地址，再次尝试从池获取连接。由于连接合并，我们有更好的匹配机会。
+    println("${RealRoutePlanner::class.java.simpleName} Step4==== 现在我们有了一组IP地址，再次尝试从池获取连接。由于连接合并，我们有更好的匹配机会。")
     val pooled2 = planReusePooledConnection(connect, connect.routes)
     if (pooled2 != null) return pooled2
 
@@ -71,6 +78,10 @@ class RealRoutePlanner(
   }
 
   /**
+   * 如果符合新交换的条件，则返回已经连接到调用的连接。
+   * 如果调用的连接存在并且有资格进行另一个交换，则返回。如果它
+   * 存在，但不能用于其他交换，它是关闭的，这返回null。
+   *
    * Returns the connection already attached to the call if it's eligible for a new exchange.
    *
    * If the call's connection exists and is eligible for another exchange, it is returned. If it
@@ -82,14 +93,21 @@ class RealRoutePlanner(
 
     // Make sure this connection is healthy & eligible for new exchanges. If it's no longer needed
     // then we're on the hook to close it.
+    //请确保此连接是健康的&符合新的交换。如果不再需要的话
+    //那么我们就挂钩关闭它。
     val healthy = candidate.isHealthy(doExtensiveHealthChecks)
     val toClose: Socket? = synchronized(candidate) {
       when {
         !healthy -> {
+          // 如果不健康，需要关闭该 连接
+          println("${RealRoutePlanner::class.java.simpleName} 如果不健康，需要关闭该连接")
           candidate.noNewExchanges = true
           call.releaseConnectionNoEvents()
         }
+        // noNewExchanges 不再有数据交换
+        // url 和 host 不相同
         candidate.noNewExchanges || !sameHostAndPort(candidate.route().address.url) -> {
+          println("${RealRoutePlanner::class.java.simpleName} 1、不再有数据交换 \n 2、url 和 host 不相同，需要关闭该连接")
           call.releaseConnectionNoEvents()
         }
         else -> null
@@ -99,7 +117,9 @@ class RealRoutePlanner(
     // If the call's connection wasn't released, reuse it. We don't call connectionAcquired() here
     // because we already acquired it.
     if (call.connection != null) {
+      // 如果连接未释放，复用改连接
       check(toClose == null)
+      println("${RealRoutePlanner::class.java.simpleName} ======连接未释放，复用连接喽=========")
       return ReusePlan(candidate)
     }
 
@@ -110,18 +130,21 @@ class RealRoutePlanner(
   }
 
   /** Plans to make a new connection by deciding which route to try next. */
+  /** 计划通过决定下一个尝试的路线来建立一个新的连接。*/
   @Throws(IOException::class)
   private fun planConnect(): ConnectPlan {
     // Use a route from a preceding coalesced connection.
     val localNextRouteToTry = nextRouteToTry
     if (localNextRouteToTry != null) {
       nextRouteToTry = null
+      println("${RealRoutePlanner::class.java.simpleName}  使用来自前一个合并连接的路由。")
       return planConnectToRoute(localNextRouteToTry)
     }
 
     // Use a route from an existing route selection.
     val existingRouteSelection = routeSelection
     if (existingRouteSelection != null && existingRouteSelection.hasNext()) {
+      println("${RealRoutePlanner::class.java.simpleName} 使用来自现有路由选择的路由。")
       return planConnectToRoute(existingRouteSelection.next())
     }
 
@@ -139,6 +162,7 @@ class RealRoutePlanner(
     }
 
     // List available IP addresses for the current proxy. This may block in Dns.lookup().
+    // 列出当前代理可用的IP地址。这可能会在Dns.lookup()中被阻塞。
     if (!newRouteSelector.hasNext()) throw IOException("exhausted all routes")
     val newRouteSelection = newRouteSelector.next()
     routeSelection = newRouteSelection
@@ -148,6 +172,10 @@ class RealRoutePlanner(
     return planConnectToRoute(newRouteSelection.next(), newRouteSelection.routes)
   }
 
+  /**
+   * 返回重用池连接的计划，如果池没有连接，则返回null
+   *这个地址。
+   */
   /**
    * Returns a plan to reuse a pooled connection, or null if the pool doesn't have a connection for
    * this address.
@@ -170,6 +198,7 @@ class RealRoutePlanner(
     // If we coalesced our connection, remember the replaced connection's route. That way if the
     // coalesced connection later fails we don't waste a valid route.
     if (planToReplace != null) {
+      println("${RealRoutePlanner::class.java.simpleName} 如果我们合并连接，记住被替换的连接的路由。这样，如果稍后合并的连接失败，我们就不会浪费一条有效的路由。")
       nextRouteToTry = planToReplace.route
       planToReplace.closeQuietly()
     }
@@ -179,6 +208,7 @@ class RealRoutePlanner(
   }
 
   /** Returns a plan for the first attempt at [route]. This throws if no plan is possible. */
+  /** 返回第一次尝试[route]的计划。如果没有可行的计划，这就会发生 */
   @Throws(IOException::class)
   internal fun planConnectToRoute(route: Route, routes: List<Route>? = null): ConnectPlan {
     if (route.address.sslSocketFactory == null) {
@@ -224,6 +254,14 @@ class RealRoutePlanner(
    * In order to support preemptive authentication we pass a fake "Auth Failed" response to the
    * authenticator. This gives the authenticator the option to customize the CONNECT request. It can
    * decline to do so by returning null, in which case OkHttp will use it as-is.
+   *
+   * 返回通过HTTP代理创建TLS隧道的请求。隧道请求中的所有内容
+   *发送到代理服务器时没有加密，所以隧道只包含最小的报头集。
+   *这避免了发送潜在的敏感数据，如HTTP cookies到未加密的代理。
+  ＊
+   *为了支持优先认证，我们传递一个假的“Auth Failed”响应给
+   *身份。这为验证者提供了自定义CONNECT请求的选项。它可以
+   *通过返回null来拒绝这样做，在这种情况下OkHttp将使用它原样。
    */
   @Throws(IOException::class)
   private fun createTunnelRequest(route: Route): Request {

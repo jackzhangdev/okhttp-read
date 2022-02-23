@@ -179,7 +179,10 @@ fun Socket.peerName(): String {
 }
 
 /**
+ * 如果在此操作上尝试新的读写操作，则返回true。
  * Returns true if new reads and writes should be attempted on this.
+ *
+ * 不幸的是，Java的网络api不能提供良好的健康检查，所以我们只能靠自己在短时间内读取。如果失败，我们立即知道套接字是不健康。
  *
  * Unfortunately Java's networking APIs don't offer a good health check, so we go on our own by
  * attempting to read with a short timeout. If the fails immediately we know the socket is

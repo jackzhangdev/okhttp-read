@@ -109,6 +109,9 @@ class RealConnection(
   /**
    * The maximum number of concurrent streams that can be carried by this connection. If
    * `allocations.size() < allocationLimit` then new streams can be created on this connection.
+   *
+   * 此连接可携带的最大并发流数。如果
+   * ' .size() < allocationLimit '则可以在这个连接上创建新的流。
    */
   private var allocationLimit = 1
 
@@ -121,6 +124,8 @@ class RealConnection(
   /**
    * Returns true if this is an HTTP/2 connection. Such connections can be used in multiple HTTP
    * requests simultaneously.
+   * 如果是HTTP/2连接，返回true。这样的连接可以用于多个HTTP
+   *同时请求。
    */
   internal val isMultiplexed: Boolean
     get() = http2Connection != null
@@ -166,47 +171,81 @@ class RealConnection(
   /**
    * Returns true if this connection can carry a stream allocation to `address`. If non-null
    * `route` is the resolved route for a connection.
+   *
+   * Eligible ：符合条件的
+   */
+  /*
+  获取路由信息
    */
   internal fun isEligible(address: Address, routes: List<Route>?): Boolean {
     assertThreadHoldsLock()
 
     // If this connection is not accepting new exchanges, we're done.
-    if (calls.size >= allocationLimit || noNewExchanges) return false
+    if (calls.size >= allocationLimit || noNewExchanges) {
+      println("${RealConnection::class.java.simpleName} 这个连接不接受新的交换")
+      return false
+    }
 
     // If the non-host fields of the address don't overlap, we're done.
-    if (!this.route.address.equalsNonHost(address)) return false
+    if (!this.route.address.equalsNonHost(address)) {
+      println("${RealConnection::class.java.simpleName} 地址的非主机字段没有重叠")
+      return false
+    }
 
     // If the host exactly matches, we're done: this connection can carry the address.
     if (address.url.host == this.route().address.url.host) {
+      println("${RealConnection::class.java.simpleName} 如果主机完全匹配，我们就完成了:这个连接可以携带地址。")
       return true // This connection is a perfect match.
     }
 
+    //在这一点上，我们没有主机名匹配。但我们仍然可以接受这个请求，如果
+    //我们的连接合并需求得到满足。
     // At this point we don't have a hostname match. But we still be able to carry the request if
     // our connection coalescing requirements are met. See also:
     // https://hpbn.co/optimizing-application-delivery/#eliminate-domain-sharding
     // https://daniel.haxx.se/blog/2016/08/18/http2-connection-coalescing/
 
     // 1. This connection must be HTTP/2.
-    if (http2Connection == null) return false
+    if (http2Connection == null) {
+      println("${RealConnection::class.java.simpleName} 必须是 Http/2 协议")
+      return false
+    }
 
     // 2. The routes must share an IP address.
-    if (routes == null || !routeMatchesAny(routes)) return false
+    if (routes == null || !routeMatchesAny(routes)) {
+      println("${RealConnection::class.java.simpleName} 路由必须共享一个IP地址。")
+      return false
+    }
 
     // 3. This connection's server certificate's must cover the new host.
-    if (address.hostnameVerifier !== OkHostnameVerifier) return false
-    if (!supportsUrl(address.url)) return false
+    if (address.hostnameVerifier !== OkHostnameVerifier) {
+      println("${RealConnection::class.java.simpleName} 此连接的服务器证书必须覆盖新主机。")
+      return false
+    }
+    if (!supportsUrl(address.url))  {
+      println("${RealConnection::class.java.simpleName} host 或者 证书 是否一致")
+      return false
+    }
 
     // 4. Certificate pinning must match the host.
     try {
+      println("${RealConnection::class.java.simpleName} 证书更换必须与主机匹配。")
       address.certificatePinner!!.check(address.url.host, handshake()!!.peerCertificates)
     } catch (_: SSLPeerUnverifiedException) {
       return false
     }
 
+    // 调用者的地址可以由这个连接携带。
+    println("${RealConnection::class.java.simpleName} 调用者的地址可以由这个连接携带。")
     return true // The caller's address can be carried by this connection.
   }
 
   /**
+   *如果此连接的路由与任何[候选]的地址相同，则返回true。这
+   *要求我们为两个主机都有一个DNS地址，这只发生在路由规划之后。我们
+  不能合并使用代理的连接，因为代理不告诉我们源服务器的IP
+   *地址。
+   *
    * Returns true if this connection's route has the same address as any of [candidates]. This
    * requires us to have a DNS address for both hosts, which only happens after route planning. We
    * can't coalesce connections that use a proxy, since proxies don't tell us the origin server's IP
@@ -294,18 +333,25 @@ class RealConnection(
     val rawSocket = this.rawSocket!!
     val socket = this.socket!!
     val source = this.source!!
+    // 如果 socket 已关闭，返回 false
     if (rawSocket.isClosed || socket.isClosed || socket.isInputShutdown ||
       socket.isOutputShutdown) {
+      println("${RealConnection::class.java.simpleName} 如果 socket 已关闭，返回 false")
       return false
     }
 
     val http2Connection = this.http2Connection
     if (http2Connection != null) {
+      // 根据 http2 的规则判断是否关闭
+      println("${RealConnection::class.java.simpleName} 根据 http2 协议的规则判断是否关闭")
       return http2Connection.isHealthy(nowNs)
     }
 
     val idleDurationNs = synchronized(this) { nowNs - idleAtNs }
+    // 1. doExtensiveChecks 请求方法不是 GET 请求， chain.request.method != "GET"
+    // 2. 空闲事件大于 10s
     if (idleDurationNs >= IDLE_CONNECTION_HEALTHY_NS && doExtensiveChecks) {
+      println("${RealConnection::class.java.simpleName}  1、请求方法不是 GET 请求\n  2. 空闲事件大于 10s")
       return socket.isHealthy(source)
     }
 

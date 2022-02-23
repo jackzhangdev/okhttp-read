@@ -71,6 +71,8 @@ class RouteSelector(
       // Postponed routes are always tried last. For example, if we have 2 proxies and all the
       // routes for proxy1 should be postponed, we'll move to proxy2. Only after we've exhausted
       // all the good routes will we attempt the postponed routes.
+      //推迟的路线总是最后尝试。例如，如果我们有两个代理
+      //proxy1的路由应该推迟，我们将转到proxy2。我们只有在用尽了所有的好路线后，才会尝试推迟的路线。
       val proxy = nextProxy()
       for (inetSocketAddress in inetSocketAddresses) {
         val route = Route(address, proxy, inetSocketAddress)
@@ -167,6 +169,7 @@ class RouteSelector(
         eventListener.dnsStart(call, socketHost)
 
         val result = address.dns.lookup(socketHost)
+        println("${RouteSelector::class.java.simpleName} dns 解析 $result")
         if (result.isEmpty()) {
           throw UnknownHostException("${address.dns} returned no addresses for $socketHost")
         }

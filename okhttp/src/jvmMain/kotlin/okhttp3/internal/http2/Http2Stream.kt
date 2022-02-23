@@ -16,11 +16,6 @@
 package okhttp3.internal.http2
 
 import okhttp3.Headers
-import okhttp3.internal.EMPTY_HEADERS
-import okhttp3.internal.assertThreadDoesntHoldLock
-import okhttp3.internal.notifyAll
-import okhttp3.internal.toHeaderList
-import okhttp3.internal.wait
 import okio.AsyncTimeout
 import okio.Buffer
 import okio.BufferedSource
@@ -31,7 +26,13 @@ import java.io.EOFException
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
+import java.nio.charset.Charset
 import java.util.ArrayDeque
+import okhttp3.internal.*
+import okhttp3.internal.assertThreadDoesntHoldLock
+import okhttp3.internal.notifyAll
+import okhttp3.internal.toHeaderList
+import okhttp3.internal.wait
 
 /** A logical bidirectional stream. */
 @Suppress("NAME_SHADOWING")
@@ -272,7 +273,7 @@ class Http2Stream internal constructor(
   @Throws(IOException::class)
   fun receiveData(source: BufferedSource, length: Int) {
     this@Http2Stream.assertThreadDoesntHoldLock()
-
+    println("${Http2Stream::class.java.simpleName} ${source.buffer} ${length}")
     this.source.receive(source, length.toLong())
   }
 

@@ -90,6 +90,9 @@ class Http2Reader(
     } catch (e: EOFException) {
       return false // This might be a normal socket close.
     }
+    /**
+     * Http 协议格式
+     */
 
     //  0                   1                   2                   3
     //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
