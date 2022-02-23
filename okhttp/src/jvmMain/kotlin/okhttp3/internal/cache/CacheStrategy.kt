@@ -41,6 +41,7 @@ import okhttp3.internal.toNonNegativeInt
  * Selecting a cache strategy may add conditions to the request (like the "If-Modified-Since" header
  * for conditional GETs) or warnings to the cached response (if the cached data is potentially
  * stale).
+ * 参考：https://cloud.tencent.com/developer/news/588770
  */
 class CacheStrategy internal constructor(
   /** The request to send on the network, or null if this call doesn't use the network. */
